@@ -48,12 +48,15 @@ def test_xy():
 
     mu = log(2) / pi / 2
     u, v, w = step_uvw(u0, v0, w0, mu, pi/10, 10)
+    print(abs(u - (u0 + 1) / 2).max())
     assert abs(u - (u0 + 1) / 2).max() < 5E-2
     assert abs(v - (v0 + 1) / 2).max() < 5E-2
     u, v, w = step_uvw(u0, v0, w0, mu, pi/20, 20)
+    print(abs(u - (u0 + 1) / 2).max())
     assert abs(u - (u0 + 1) / 2).max() < 1E-2
     assert abs(v - (v0 + 1) / 2).max() < 1E-2
     u, v, w = step_uvw(u0, v0, w0, mu, pi/40, 40)
+    print(abs(u - (u0 + 1) / 2).max())
     assert abs(u - (u0 + 1) / 2).max() < 1E-3
     assert abs(v - (v0 + 1) / 2).max() < 1E-3
 

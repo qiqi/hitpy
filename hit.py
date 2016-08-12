@@ -56,6 +56,9 @@ def convection(uhat, vhat, what, body_force):
                  + diffz(unpad_32rule(fft.rfftn(w * w)))
     if body_force:
         fx, fy, fz = body_force(u, v, w)
+        fx = unpad_32rule(fft.rfftn(fx))
+        fy = unpad_32rule(fft.rfftn(fy))
+        fz = unpad_32rule(fft.rfftn(fz))
     else:
         fx, fy, fz = 0, 0, 0
     return fx - convection_x, fy - convection_y, fz - convection_z
@@ -70,7 +73,7 @@ def pressure(uhat, vhat, what):
     what -= phat * jkz(n)
     return phat
 
-def conv_press(uvwhat, body_force=None):
+def conv_press(uvwhat, body_force):
     uhat, vhat, what = uvwhat
     conv_x, conv_y, conv_z = convection(uhat, vhat, what, body_force)
     pressure(conv_x, conv_y, conv_z)
@@ -82,23 +85,50 @@ def viscosity(uvwhat, mu_dt):
     decay = exp(-mu_dt * jk2)
     return uvwhat * decay
 
-def conv_press_mu_dt(uvwhat_exp, mu_dt):
+def conv_press_mu_dt(uvwhat_exp, mu_dt, body_force):
     uvwhat = viscosity(uvwhat_exp, mu_dt)
-    return viscosity(conv_press(uvwhat), -mu_dt)
+    return viscosity(conv_press(uvwhat, body_force), -mu_dt)
 
-def step(uvwhat, mu, dt):
+def step(uvwhat, mu, dt, body_force=None):
     uvwhat_exp = array(uvwhat)
-    f0 = conv_press_mu_dt(uvwhat_exp, 0) * dt
-    f1 = conv_press_mu_dt(uvwhat_exp + f0 / 2, dt / 2 * mu) * dt
-    f2 = conv_press_mu_dt(uvwhat_exp + f1 / 2, dt / 2 * mu) * dt
-    f3 = conv_press_mu_dt(uvwhat_exp + f1, dt * mu) * dt
+    f0 = conv_press_mu_dt(uvwhat_exp, 0, body_force) * dt
+    f1 = conv_press_mu_dt(uvwhat_exp + f0 / 2, dt / 2 * mu, body_force) * dt
+    f2 = conv_press_mu_dt(uvwhat_exp + f1 / 2, dt / 2 * mu, body_force) * dt
+    f3 = conv_press_mu_dt(uvwhat_exp + f1, dt * mu, body_force) * dt
     return viscosity(uvwhat_exp + (f0 + f3) / 6 + (f1 + f2) / 3, dt * mu)
 
+def statistics(uvwhat, mu):
+    n = uvwhat.shape[1]
+    jk2 = abs(jkx(n)**2 + jky(n)**2 + jkz(n)**2)
+    uvw = fft.irfftn(uvwhat, axes=(1,2,3))
+    duvw = fft.irfftn(mu * jk2 * uvwhat, axes=(1,2,3))
+    eps = (uvw * duvw).sum(0).mean() # energy dissipation rate per unit mass
+    U = sqrt((uvw**2).mean()) # mean fluctuating velocity
+    lam = sqrt(15 * mu * U*U / eps) # taylor microscale
+    Rlam = U * lam / mu # Reynolds number
+    return eps, U, lam, Rlam
+
 if __name__ == '__main__':
-    n = 16
+    n = 32
     x = 2 * pi * arange(n) / n
     x, y, z = meshgrid(x, x, x, indexing='ij')
 
-    u0 = sin(x) * cos(y) * cos(z)
-    v0 = -cos(x) * sin(y)
-    w0 = -cos(x) * sin(y)
+    # u = -cos(x) * sin(y) * sin(z)
+    # v = -sin(x) * cos(y) * sin(z)
+    # w = 2 * sin(x) * sin(y) * cos(z)
+    def body_force(u, v, w):
+        c = 1 / (u**2 + v**2 + w**2).mean()
+        return c * u, c * v, c * w
+    u = random.rand(n,n,n) * 2
+    v = random.rand(n,n,n) * 2
+    w = random.rand(n,n,n) * 2
+    u -= u.mean()
+    v -= v.mean()
+    w -= w.mean()
+    uvwhat = fft.rfftn([u, v, w], axes=(1,2,3))
+    mu = 0.01
+    for i in range(1000):
+        uvwhat = step(uvwhat, mu, 0.01, body_force)
+        if i % 10 == 0:
+            print(statistics(uvwhat, mu))
+    u, v, w = fft.irfftn(uvwhat, axes=(1,2,3))

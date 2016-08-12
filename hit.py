@@ -1,11 +1,6 @@
 from __future__ import division
 from numpy import *
 
-# n = 16
-# x = 2 * pi * arange(n) / n
-# x, y, z = meshgrid(x, x, x, indexing='ij')
-# u = sin(x)
-
 def pad_32rule(uhat):
     n = uhat.shape[0]
     assert uhat.shape == (n, n, n//2+1)
@@ -28,71 +23,74 @@ def unpad_32rule(uhat_padded):
     uhat[-n//3+1:,-n//3+1:,:n//3] = uhat_padded[-n//3+1:,-n//3+1:,:n//3]
     return uhat * (2/3)**3
 
+def jkx(n):
+    return 1j * hstack([arange(n//2), 0, arange(-n//2+1, 0)])[:,newaxis,newaxis]
+
+def jky(n):
+    return 1j * hstack([arange(n//2), 0, arange(-n//2+1, 0)])[newaxis,:,newaxis]
+
+def jkz(n):
+    return 1j * hstack([arange(n//2), 0])[newaxis,newaxis,:]
+
 def diffx(uhat):
-    n = uhat.shape[0]
-    jk = 1j * hstack([arange(n//2), 0, arange(-n//2+1, 0)])
-    return uhat * jk[:,newaxis,newaxis]
+    return uhat * jkx(uhat.shape[0])
 
 def diffy(uhat):
-    n = uhat.shape[0]
-    jk = 1j * hstack([arange(n//2), 0, arange(-n//2+1, 0)])
-    return uhat * jk[newaxis,:,newaxis]
+    return uhat * jky(uhat.shape[0])
 
 def diffz(uhat):
+    return uhat * jkz(uhat.shape[0])
+
+def convection(uhat, vhat, what, body_force):
+    u = fft.irfftn(pad_32rule(uhat))
+    v = fft.irfftn(pad_32rule(vhat))
+    w = fft.irfftn(pad_32rule(what))
+    convection_x = diffx(unpad_32rule(fft.rfftn(u * u))) \
+                 + diffy(unpad_32rule(fft.rfftn(u * v))) \
+                 + diffz(unpad_32rule(fft.rfftn(u * w)))
+    convection_y = diffx(unpad_32rule(fft.rfftn(v * u))) \
+                 + diffy(unpad_32rule(fft.rfftn(v * v))) \
+                 + diffz(unpad_32rule(fft.rfftn(v * w)))
+    convection_z = diffx(unpad_32rule(fft.rfftn(w * u))) \
+                 + diffy(unpad_32rule(fft.rfftn(w * v))) \
+                 + diffz(unpad_32rule(fft.rfftn(w * w)))
+    if body_force:
+        fx, fy, fz = body_force(u, v, w)
+    else:
+        fx, fy, fz = 0, 0, 0
+    return fx - convection_x, fy - convection_y, fz - convection_z
+
+def pressure(uhat, vhat, what):
     n = uhat.shape[0]
-    jk = 1j * hstack([arange(n//2), 0])
-    return uhat * jk[newaxis,newaxis,:]
+    div_hat = uhat * jkx(n) + vhat * jky(n) + what * jkz(n)
+    jk2 = abs(jkx(n)**2 + jky(n)**2 + jkz(n)**2)
+    phat = -div_hat / maximum(jk2, 1)
+    uhat -= phat * jkx(n)
+    vhat -= phat * jky(n)
+    what -= phat * jkz(n)
+    return phat
 
-def convection(uhat, vhat, what):
-    pass
+def conv_press(uvwhat, body_force=None):
+    uhat, vhat, what = uvwhat
+    conv_x, conv_y, conv_z = convection(uhat, vhat, what, body_force)
+    pressure(conv_x, conv_y, conv_z)
+    return array([conv_x, conv_y, conv_z])
 
-if __name__ == '__main__':
-    n = 16
-    x = 2 * pi * arange(n) / n
-    x, y, z = meshgrid(x, x, x, indexing='ij')
-    u = sin(x)
-    v = sin(y)
-    w = sin(z)
-    ux = fft.irfftn(diffx(fft.rfftn(u)))
-    vx = fft.irfftn(diffx(fft.rfftn(v)))
-    wx = fft.irfftn(diffx(fft.rfftn(w)))
-    assert abs(ux - cos(x)).max() < 1E-12
-    assert abs(vx).max() < 1E-12
-    assert abs(wx).max() < 1E-12
-    uy = fft.irfftn(diffy(fft.rfftn(u)))
-    vy = fft.irfftn(diffy(fft.rfftn(v)))
-    wy = fft.irfftn(diffy(fft.rfftn(w)))
-    assert abs(uy).max() < 1E-12
-    assert abs(vy - cos(y)).max() < 1E-12
-    assert abs(wy).max() < 1E-12
-    uz = fft.irfftn(diffz(fft.rfftn(u)))
-    vz = fft.irfftn(diffz(fft.rfftn(v)))
-    wz = fft.irfftn(diffz(fft.rfftn(w)))
-    assert abs(uz).max() < 1E-12
-    assert abs(vz).max() < 1E-12
-    assert abs(wz - cos(z)).max() < 1E-12
+def viscosity(uvwhat, mu_dt):
+    n = uvwhat.shape[1]
+    jk2 = abs(jkx(n)**2 + jky(n)**2 + jkz(n)**2)
+    decay = exp(-mu_dt * jk2)
+    return uvwhat * decay
 
-    n = 16
-    x = 2 * pi * arange(n) / n
-    x, y, z = meshgrid(x, x, x, indexing='ij')
-    u = sin(x * 2)
-    v = sin(y * 2)
-    w = sin(z * 2)
-    ux = fft.irfftn(diffx(fft.rfftn(u)))
-    vx = fft.irfftn(diffx(fft.rfftn(v)))
-    wx = fft.irfftn(diffx(fft.rfftn(w)))
-    assert abs(ux - 2 * cos(x * 2)).max() < 1E-12
-    assert abs(vx).max() < 1E-12
-    assert abs(wx).max() < 1E-12
-    uy = fft.irfftn(diffy(fft.rfftn(u)))
-    vy = fft.irfftn(diffy(fft.rfftn(v)))
-    wy = fft.irfftn(diffy(fft.rfftn(w)))
-    assert abs(uy).max() < 1E-12
-    assert abs(vy - 2 * cos(y * 2)).max() < 1E-12
-    assert abs(wy).max() < 1E-12
-    uz = fft.irfftn(diffz(fft.rfftn(u)))
-    vz = fft.irfftn(diffz(fft.rfftn(v)))
-    wz = fft.irfftn(diffz(fft.rfftn(w)))
-    assert abs(uz).max() < 1E-12
-    assert abs(vz).max() < 1E-12
-    assert abs(wz - 2 * cos(z * 2)).max() < 1E-12
+def conv_press_mu_dt(uvwhat_exp, mu_dt):
+    uvwhat = viscosity(uvwhat_exp, mu_dt)
+    return viscosity(conv_press(uvwhat), -mu_dt)
+
+def step(uvwhat, mu, dt):
+    uvwhat_exp = array(uvwhat)
+    f0 = conv_press_mu_dt(uvwhat_exp, 0) * dt
+    f1 = conv_press_mu_dt(uvwhat_exp + f0 / 2, dt / 2 * mu) * dt
+    f2 = conv_press_mu_dt(uvwhat_exp + f1 / 2, dt / 2 * mu) * dt
+    f3 = conv_press_mu_dt(uvwhat_exp + f1, dt * mu) * dt
+    return viscosity(uvwhat_exp + (f0 + f3) / 6 + (f1 + f2) / 3, dt * mu)
+

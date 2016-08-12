@@ -94,3 +94,11 @@ def step(uvwhat, mu, dt):
     f3 = conv_press_mu_dt(uvwhat_exp + f1, dt * mu) * dt
     return viscosity(uvwhat_exp + (f0 + f3) / 6 + (f1 + f2) / 3, dt * mu)
 
+if __name__ == '__main__':
+    n = 16
+    x = 2 * pi * arange(n) / n
+    x, y, z = meshgrid(x, x, x, indexing='ij')
+
+    u0 = sin(x) * cos(y) * cos(z)
+    v0 = -cos(x) * sin(y)
+    w0 = -cos(x) * sin(y)

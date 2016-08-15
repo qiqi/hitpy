@@ -11,6 +11,7 @@ sys.path.append(my_path)
 sys.path.append(os.path.join(my_path, '..', 'fds'))
 
 from fds import *
+from fds.checkpoint import load_last_checkpoint
 from hit import run
 
 cp_path = os.path.join(my_path, 'fds')
@@ -20,7 +21,7 @@ mu = 0.03
 k_modes = 16
 m_segments = 100
 steps_per_segment = 100
-checkpoint = load_last_checkpoint(BASE_PATH, M_MODES)
+checkpoint = load_last_checkpoint(cp_path, k_modes)
 if checkpoint is None:
     J, G = shadowing(run, u0, mu, k_modes, m_segments, steps_per_segment,
                      0, checkpoint_path=cp_path)

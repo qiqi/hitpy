@@ -56,7 +56,7 @@ def uvw_ravel(uvwhat):
 
 def run(uvwhat_real, mu, nsteps):
     uvwhat = uvw_unravel(uvwhat_real)
-    uvwhat[0,0,0] = 0
+    uvwhat[:,0,0,0] = 0
     J = []
     for i in range(nsteps):
         uvwhat = step(uvwhat, mu, 0.01, body_force)
@@ -69,8 +69,10 @@ if __name__ == '__main__':
     uvwhat_real = random.rand(n * n * (n//2+1) * 6)
     uvwhat = uvw_unravel(uvwhat_real)
     mu = 0.03
+    uvwhat[:,0,0,0] = 0
     for i in range(1000):
         uvwhat = step(uvwhat, mu, 0.01, body_force)
+        print(uvwhat[:,0,0,0])
         if i % 100 == 0:
             print(statistics(uvwhat, mu))
             eps, U, lam, Rlam, L_integral, L_komogorov = statistics(uvwhat, mu)

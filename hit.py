@@ -1,4 +1,6 @@
 from __future__ import division
+import matplotlib
+matplotlib.use('Agg')
 from pylab import *
 from numpy import *
 
@@ -65,12 +67,12 @@ def run(uvwhat_real, mu, nsteps):
     return uvw_ravel(uvwhat), array(J)
 
 if __name__ == '__main__':
-    n = 32
+    n = 16
     uvwhat_real = random.rand(n * n * (n//2+1) * 6)
     uvwhat = uvw_unravel(uvwhat_real)
-    mu = 0.03
+    mu = 0.05
     uvwhat[:,0,0,0] = 0
-    for i in range(1000):
+    for i in range(5000):
         uvwhat = step(uvwhat, mu, 0.01, body_force)
         print(uvwhat[:,0,0,0])
         if i % 100 == 0:
@@ -81,4 +83,4 @@ if __name__ == '__main__':
             semilogx(k * L_komogorov, E * k**(5/3) / eps**(2/3), 'o-')
             savefig('spectrum{0:06d}'.format(i))
     uvwhat_real = uvw_ravel(uvwhat)
-    save('state_0.03.npy', uvwhat_real)
+    save('state_0.05.npy', uvwhat_real)

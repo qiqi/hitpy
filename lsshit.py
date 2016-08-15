@@ -20,7 +20,7 @@ if not os.path.exists(cp_path):
 u0 = load(os.path.join(my_path, 'state_0.05.npy'))
 
 mu = 0.05
-k_modes = 108
+k_modes = 180
 m_segments = 500
 steps_per_segment = 200
 checkpoint = load_last_checkpoint(cp_path, k_modes)

@@ -94,6 +94,6 @@ def step(uvwhat, mu, dt, body_force=None):
     f0 = conv_press_mu_dt(uvwhat_exp, 0, body_force) * dt
     f1 = conv_press_mu_dt(uvwhat_exp + f0 / 2, dt / 2 * mu, body_force) * dt
     f2 = conv_press_mu_dt(uvwhat_exp + f1 / 2, dt / 2 * mu, body_force) * dt
-    f3 = conv_press_mu_dt(uvwhat_exp + f1, dt * mu, body_force) * dt
+    f3 = conv_press_mu_dt(uvwhat_exp + f2, dt * mu, body_force) * dt
     return viscosity(uvwhat_exp + (f0 + f3) / 6 + (f1 + f2) / 3, dt * mu)
 

@@ -5,7 +5,7 @@ from numpy import *
 my_path = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(my_path, '..'))
 
-from hit import pad_32rule, unpad_32rule
+from navierstokes import pad_32rule, unpad_32rule
 
 def test_pad():
     n = 16

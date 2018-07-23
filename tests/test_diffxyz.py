@@ -5,7 +5,7 @@ from numpy import *
 my_path = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(my_path, '..'))
 
-from hit import diffx, diffy, diffz
+from navierstokes import diffx, diffy, diffz
 
 def test_sin():
     n = 16
